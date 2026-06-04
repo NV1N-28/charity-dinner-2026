@@ -207,49 +207,47 @@
         }
     }
 
-    document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+   document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-        try {
-            const donor = document.getElementById('donorName').value.trim();
-            const amountStr = document.getElementById('amount').value;
-            const table = document.getElementById('tableNumber').value.trim();
-            const presented = document.getElementById('presentedBy').value.trim();
+    // 1. Try multiple common input IDs just in case they differ in your HTML layout
+    const tableInput = document.getElementById('tableNumber') || document.getElementById('table') || document.querySelector('input[placeholder*="Table"]');
+    const donorInput = document.getElementById('donorName') || document.getElementById('donor') || document.querySelector('input[placeholder*="Name"]');
+    const amountInput = document.getElementById('amount') || document.getElementById('donation') || document.querySelector('input[type="number"]');
+    const presentedInput = document.getElementById('presentedBy') || document.getElementById('presented') || document.querySelector('input[placeholder*="Presented"]');
 
-            const parsedAmount = parseFloat(amountStr);
-            const finalAmount = isNaN(parsedAmount) ? 0.00 : parsedAmount;
-            const finalReceipt = base64Receipt || 'https://placehold.co/300x400?text=Receipt+Missing';
+    // 2. Safely extract values without crashing
+    const tableValue = tableInput ? tableInput.value.trim() : "N/A";
+    const donorValue = donorInput ? donorInput.value.trim() : "Anonymous";
+    const presentedValue = presentedInput ? presentedInput.value.trim() : "N/A";
+    
+    // 3. Clean and convert the amount strictly
+    let rawAmount = amountInput ? amountInput.value : "0";
+    let parsedAmount = parseFloat(rawAmount);
+    if (isNaN(parsedAmount)) {
+        parsedAmount = 0.00;
+    }
 
-            let donations = [];
-            try {
-                const existingData = localStorage.getItem('donations');
-                if (existingData) {
-                    donations = JSON.parse(existingData);
-                }
-            } catch(storageErr) {
-                donations = [];
-            }
+    const finalReceipt = base64Receipt || 'https://placehold.co/300x400?text=Receipt+Missing';
 
-            donations.push({
-                donor: donor,
-                amount: finalAmount,
-                table: table,
-                presented: presented || 'N/A',
-                receipt: finalReceipt,
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            });
-            
-            localStorage.setItem('donations', JSON.stringify(donations));
-
-            document.getElementById('portalCard').classList.add('hidden');
-            document.getElementById('successBox').classList.remove('hidden');
-            document.getElementById('publicDonationForm').reset();
-            base64Receipt = ""; 
-
-        } catch (globalError) {
-            alert("Submission Error: " + globalError.message);
-        }
+    // 4. Send clean, verified data directly to your live Firebase cloud
+    database.ref('donations').push({
+        table: tableValue,
+        donor: donorValue,
+        amount: parsedAmount,
+        presented: presentedValue,
+        receipt: finalReceipt,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }).then(() => {
+        // Clear screen states smoothly
+        document.getElementById('portalCard').classList.add('hidden');
+        document.getElementById('successBox').classList.remove('hidden');
+        document.getElementById('publicDonationForm').reset();
+        window.base64Receipt = "";
+    }).catch((error) => {
+        alert("Cloud sync issue: " + error.message);
     });
+});
 </script>
 </body>
 </html>
