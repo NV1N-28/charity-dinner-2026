@@ -233,10 +233,14 @@
     let globalDonationsList = []; // Keeps track of unique cloud ID keys for generation processing
 
    // LIVE LISTEN STREAM ENGINE: Watches cloud changes and updates cleanly without doubling rows
+// 1. KILL ANY PREVIOUS ACTIVE CLOUD LISTENERS TO AVOID DOUBLE COPIES
+database.ref('donations').off();
+
+// 2. OPEN A FRESH, SINGLE LIVE WATCH LOOP
 database.ref('donations').on('value', function(snapshot) {
     const tableBody = document.getElementById('donationTable');
     
-    // CRITICAL: Force clear the laptop screen table content first to prevent duplication
+    // Hard-wipe the laptop screen elements completely
     tableBody.innerHTML = ''; 
     globalDonationsList = [];
 
@@ -250,10 +254,9 @@ database.ref('donations').on('value', function(snapshot) {
         const idKey = childSnapshot.key;
         const d = childSnapshot.val();
         
-        // Store the records cleanly
         globalDonationsList.push({ id: idKey, data: d });
 
-        // Append the fresh incoming row row item data smoothly
+        // Draw the fresh clean entry rows
         tableBody.innerHTML += `
         <tr>
             <td><strong>${d.table}</strong></td>
@@ -261,8 +264,8 @@ database.ref('donations').on('value', function(snapshot) {
             <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
             <td>${d.presented}</td>
             <td>
-                <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')" title="Click to view">
-                <button class="dl-btn" onclick="downloadReceiptImage(${index})"> Download Image</button>
+                <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
+                <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
             </td>
             <td>
                 <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
@@ -272,7 +275,6 @@ database.ref('donations').on('value', function(snapshot) {
         index++;
     });
 });
-
     function downloadReceiptImage(index) {
         const record = globalDonationsList[index].data;
         if (!record || !record.receipt.startsWith('data:')) {
