@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Big Screen Display</title>
+<style>
+body{margin:0;background:black;color:white;display:flex;justify-content:center;align-items:center;height:100vh;text-align:center;font-family:Arial;}
+.box{animation: fade 1s infinite alternate;}
+h1{font-size:70px;}h2{font-size:55px;}h3{font-size:45px;}
+@keyframes fade{from{opacity:0.7;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="box">
+    <h1>THANK YOU</h1>
+    <h2 id="name"></h2>
+    <h3 id="amount"></h3>
+</div>
+<script>
+let donations = JSON.parse(localStorage.getItem('donations')) || [];
+if(donations.length > 0){
+    let latest = donations[donations.length - 1];
+    document.getElementById('name').innerText = latest.donor;
+    document.getElementById('amount').innerText = 'RM ' + latest.amount;
+}
+</script>
+</body>
+</html>

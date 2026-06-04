@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Internal Check Verification Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container" style="margin-top: 40px;">
+    <h1>IT Room Check Generator</h1>
+    <p><a href="admin.html" style="color:#6b3e00; font-weight:bold;">← Return to Live Streams Dashboard</a></p>
+
+    <!-- Preview Container Block using your protected coordinates -->
+    <div class="preview" style="margin-top:30px;">
+        <div class="cheque-container">
+            <img src="assets/cheque-template.png" class="cheque-bg" alt="Cheque Template">
+
+            <div id="payeeText" class="payee"></div>
+            <div id="amountWordsText" class="amount-words"></div>
+            <div id="amountText" class="amount"></div>
+            <div id="presentedText" class="presented"></div>
+            <div id="tableText" class="table"></div>
+        </div>
+    </div>
+
+    <button onclick="window.print()" style="margin-top: 20px;">Print / Download Check Image</button>
+</div>
+
+<script>
+    function convertNumberToWords(amount) {
+        const words = {
+            0: 'ZERO', 1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 
+            6: 'SIX', 7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 
+            11: 'ELEVEN', 12: 'TWELVE', 13: 'THIRTEEN', 14: 'FOURTEEN', 15: 'FIFTEEN', 
+            16: 'SIXTEEN', 17: 'SEVENTEEN', 18: 'EIGHTEEN', 19: 'NINETEEN', 
+            20: 'TWENTY', 30: 'THIRTY', 40: 'FORTY', 50: 'FIFTY', 
+            60: 'SIXTY', 70: 'SEVENTY', 80: 'EIGHTY', 90: 'NINETY'
+        };
+
+        if (amount === 0) return 'ZERO RINGGIT ONLY';
+
+        let parts = amount.toString().split('.');
+        let ringgit = parseInt(parts[0], 10);
+        let sen = parts[1] ? parseInt(parts[1].substring(0, 2), 10) : 0;
+
+        function getWords(num) {
+            if (num < 20) return words[num] || '';
+            if (num < 100) return words[Math.floor(num / 10) * 10] + (num % 10 ? ' ' + words[num % 10] : '');
+            if (num < 1000) return words[Math.floor(num / 100)] + ' HUNDRED' + (num % 100 ? ' AND ' + getWords(num % 100) : '');
+            if (num < 100000) return getWords(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + getWords(num % 1000) : '');
+            if (num < 1000000) return getWords(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + getWords(num % 1000) : '');
+            return '';
+        }
+
+        let ringgitWords = ringgit > 0 ? getWords(ringgit) + ' RINGGIT' : '';
+        let senWords = sen > 0 ? ' AND SEN ' + getWords(sen) : '';
+        
+        return (ringgitWords + senWords + ' ONLY').replace(/\s+/g, ' ').trim();
+    }
+
+    window.onload = function() {
+        const activeIndex = localStorage.getItem('activeChequeIndex');
+        let donations = JSON.parse(localStorage.getItem('donations')) || [];
+
+        if (activeIndex !== null && donations[activeIndex]) {
+            const targetRecord = donations[activeIndex];
+            const numAmount = parseFloat(targetRecord.amount);
+
+            // Format number and word rows seamlessly
+            const formattedAmt = numAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const dynamicWords = convertNumberToWords(numAmount);
+
+            // Send data values safely to matching classes 
+            document.getElementById('payeeText').innerText = targetRecord.donor;
+            document.getElementById('amountWordsText').innerText = dynamicWords;
+            document.getElementById('amountText').innerText = formattedAmt;
+            document.getElementById('presentedText').innerText = targetRecord.presented;
+            document.getElementById('tableText').innerText = 'TABLE ' + targetRecord.table;
+        } else {
+            alert("No active check record chosen!");
+            window.location.href = 'admin.html';
+        }
+    };
+</script>
+</body>
+</html>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+    const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- MAKE SURE THIS LINE IS NOT MISSING OR EMPTY
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    function convertNumberToWords(amount) {
+        const words = {
+            0: 'ZERO', 1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 
+            6: 'SIX', 7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 
+            11: 'ELEVEN', 12: 'TWELVE', 13: 'THIRTEEN', 14: 'FOURTEEN', 15: 'FIFTEEN', 
+            16: 'SIXTEEN', 17: 'SEVENTEEN', 18: 'EIGHTEEN', 19: 'NINETEEN', 
+            20: 'TWENTY', 30: 'THIRTY', 40: 'FORTY', 50: 'FIFTY', 
+            60: 'SIXTY', 70: 'SEVENTY', 80: 'EIGHTY', 90: 'NINETY'
+        };
+        if (amount === 0) return 'ZERO RINGGIT ONLY';
+        let parts = amount.toString().split('.');
+        let ringgit = parseInt(parts[0], 10);
+        let sen = parts[1] ? parseInt(parts[1].substring(0, 2), 10) : 0;
+
+        function getWords(num) {
+            if (num < 20) return words[num] || '';
+            if (num < 100) return words[Math.floor(num / 10) * 10] + (num % 10 ? ' ' + words[num % 10] : '');
+            if (num < 1000) return words[Math.floor(num / 100)] + ' HUNDRED' + (num % 100 ? ' AND ' + getWords(num % 100) : '');
+            if (num < 100000) return getWords(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + getWords(num % 1000) : '');
+            if (num < 1000000) return getWords(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + getWords(num % 1000) : '');
+            return '';
+        }
+        let ringgitWords = ringgit > 0 ? getWords(ringgit) + ' RINGGIT' : '';
+        let senWords = sen > 0 ? ' AND SEN ' + getWords(sen) : '';
+        return (ringgitWords + senWords + ' ONLY').replace(/\s+/g, ' ').trim();
+    }
+
+    window.onload = function() {
+        const activeId = localStorage.getItem('activeCloudChequeId');
+
+        if (activeId) {
+            // FETCH SPECIFIC TARGET RECORD DIRECTLY FROM FIREBASE LIVE
+            database.ref('donations/' + activeId).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const targetRecord = snapshot.val();
+                    const numAmount = parseFloat(targetRecord.amount);
+
+                    const formattedAmt = numAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const dynamicWords = convertNumberToWords(numAmount);
+
+                    document.getElementById('payeeText').innerText = targetRecord.donor;
+                    document.getElementById('amountWordsText').innerText = dynamicWords;
+                    document.getElementById('amountText').innerText = formattedAmt;
+                    document.getElementById('presentedText').innerText = targetRecord.presented;
+                    document.getElementById('tableText').innerText = 'TABLE ' + targetRecord.table;
+                } else {
+                    alert("Record no longer exists in the cloud.");
+                    window.location.href = 'admin.html';
+                }
+            });
+        } else {
+            alert("No check selected!");
+            window.location.href = 'admin.html';
+        }
+    };
+</script>

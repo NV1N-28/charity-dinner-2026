@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>IT Room Control Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<style>
+    /* Local scoped styles to keep style.css completely untouched */
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgb(255, 255, 255);
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .dashboard-table th, .dashboard-table td {
+        padding: 12px;
+        border: 1px solid #000000;
+        text-align: center;
+    }
+    .dashboard-table th { background: #6b3e00; color: rgb(255, 255, 255); }
+    
+    .action-btn {
+        background: #6b3e00;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .action-btn:hover { background: #523000; }
+
+    .admin-actions-bar {
+        margin: 20px 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .excel-btn {
+        background: #1f7246;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 15px;
+    }
+    .excel-btn:hover { background: #00ff7b; }
+
+    .clear-btn {
+        background: #d32f2f;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 15px;
+    }
+    .clear-btn:hover { background: #b71c1c; }
+
+    .dl-btn {
+        background: #000000;
+        color: rgb(255, 255, 255);
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+        margin-top: 5px;
+        display: inline-block;
+    }
+    .dl-btn:hover { background: #333333; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Command Dashboard</h1>
+    <p>Review entries:</p>
+
+    <div class="admin-actions-bar">
+        <button class="excel-btn" onclick="exportListToExcel()">Export Master List to Excel (.csv)</button>
+        <button class="clear-btn" onclick="clearAllTestingRecords()">Clear All Live Lists</button>
+    </div>
+
+    <table class="dashboard-table">
+        <thead>
+            <tr>
+                <th>Table</th>
+                <th>Donor Name</th>
+                <th>Amount Registered</th>
+                <th>Presented By</th>
+                <th>Receipt Proof</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="donationTable"></tbody>
+    </table>
+</div>
+
+<script>
+    function loadLiveRecords() {
+        let donations = JSON.parse(localStorage.getItem('donations')) || [];
+        const tableBody = document.getElementById('donationTable');
+        tableBody.innerHTML = '';
+
+        if(donations.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6">No incoming donation entries submitted yet.</td></tr>`;
+            return;
+        }
+
+        donations.forEach((d, index) => {
+            tableBody.innerHTML += `
+            <tr>
+                <td><strong>${d.table}</strong></td>
+                <td>${d.donor}</td>
+                <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                <td>${d.presented}</td>
+                <td>
+                    <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')" title="Click to view">
+                    <button class="dl-btn" onclick="downloadReceiptImage(${index})">Download Image</button>
+                </td>
+                <td>
+                    <button class="action-btn" onclick="generateCheque(${index})">Verify & Load Check</button>
+                </td>
+            </tr>
+            `;
+        });
+    }
+
+    // NEW CONVERSION ENGINE: Turns raw text codes into actual viewable image files
+    function downloadReceiptImage(index) {
+        let donations = JSON.parse(localStorage.getItem('donations')) || [];
+        const record = donations[index];
+        
+        if (!record || !record.receipt.startsWith('data:')) {
+            alert("No valid receipt image found for this entry.");
+            return;
+        }
+
+        // Split the base64 text into content type and raw data chunks
+        const parts = record.receipt.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)[1];
+        const rawString = atob(parts[1]);
+        let length = rawString.length;
+        const u8Array = new Uint8Array(length);
+        
+        while(length--) {
+            u8Array[length] = rawString.charCodeAt(length);
+        }
+        
+        // Bundle chunks into an authentic browser image file binary object
+        const blob = new Blob([u8Array], {type: mimeType});
+        
+        // Create an automatic click thread trigger link
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        
+        // Format clean name file string
+        const safeName = record.donor.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        link.download = `Table_${record.table}_Receipt_${safeName}.jpg`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function generateCheque(index) {
+        localStorage.setItem('activeChequeIndex', index);
+        window.location.href = 'view-cheque.html';
+    }
+
+    function exportListToExcel() {
+        let donations = JSON.parse(localStorage.getItem('donations')) || [];
+        
+        if (donations.length === 0) {
+            alert("The record database list is currently empty. There is nothing to export yet!");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Table Number,Donor Name,Amount (RM),Presented By,Timestamp\n";
+
+        donations.forEach(d => {
+            let cleanDonor = d.donor.replace(/,/g, '');
+            let cleanPresented = d.presented.replace(/,/g, '');
+            csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${cleanPresented}","${d.time}"\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Charity_Dinner_Donations_MasterList.csv`);
+        document.body.appendChild(link);
+        
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function clearAllTestingRecords() {
+        if (confirm("Are you absolutely sure you want to clear all data entries? This will delete all live table submissions permanently.")) {
+            localStorage.removeItem('donations');
+            localStorage.removeItem('activeChequeIndex');
+            loadLiveRecords();
+        }
+    }
+
+    window.onload = loadLiveRecords;
+</script>
+</body>
+</html>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+    const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- MAKE SURE THIS LINE IS NOT MISSING OR EMPTY
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    let globalDonationsList = []; // Keeps track of unique cloud ID keys for generation processing
+
+    // LIVE LISTEN STREAM ENGINE: Watches cloud changes and updates your screen instantly
+    database.ref('donations').on('value', function(snapshot) {
+        const tableBody = document.getElementById('donationTable');
+        tableBody.innerHTML = '';
+        globalDonationsList = [];
+
+        if (!snapshot.exists()) {
+            tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
+            return;
+        }
+
+        let index = 0;
+        snapshot.forEach(childSnapshot => {
+            const idKey = childSnapshot.key;
+            const d = childSnapshot.val();
+            
+            // Store both data properties and database record references
+            globalDonationsList.push({ id: idKey, data: d });
+
+            tableBody.innerHTML += `
+            <tr>
+                <td><strong>${d.table}</strong></td>
+                <td>${d.donor}</td>
+                <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                <td>${d.presented}</td>
+                <td>
+                    <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
+                    <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
+                </td>
+                <td>
+                    <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
+                </td>
+            </tr>
+            `;
+            index++;
+        });
+    });
+
+    function downloadReceiptImage(index) {
+        const record = globalDonationsList[index].data;
+        if (!record || !record.receipt.startsWith('data:')) {
+            alert("No valid receipt image found.");
+            return;
+        }
+        const parts = record.receipt.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)[1];
+        const rawString = atob(parts[1]);
+        let length = rawString.length;
+        const u8Array = new Uint8Array(length);
+        while(length--) { u8Array[length] = rawString.charCodeAt(length); }
+        const blob = new Blob([u8Array], {type: mimeType});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        const safeName = record.donor.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        link.download = `Table_${record.table}_Receipt_${safeName}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function generateCheque(idKey) {
+        // Pass the cloud database ID key to the generation view securely
+        localStorage.setItem('activeCloudChequeId', idKey);
+        window.location.href = 'view-cheque.html';
+    }
+
+    function exportListToExcel() {
+        if (globalDonationsList.length === 0) {
+            alert("The database record list is currently empty!");
+            return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Table Number,Donor Name,Amount (RM),Presented By,Timestamp,Image Proof Link\n";
+
+        globalDonationsList.forEach(item => {
+            const d = item.data;
+            let cleanDonor = d.donor.replace(/,/g, '');
+            let cleanPresented = d.presented.replace(/,/g, '');
+            csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${cleanPresented}","${d.time}","${d.receipt}"\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Charity_Dinner_Donations_MasterList.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function clearAllTestingRecords() {
+        if (confirm("Are you absolutely sure you want to wipe the central cloud database? All event records will be lost permanently.")) {
+            database.ref('donations').remove().then(() => {
+                alert("Database wiped successfully!");
+            });
+        }
+    }
+</script>

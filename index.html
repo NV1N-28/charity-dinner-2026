@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charity Dinner 2026 Portal</title>
+<link rel="stylesheet" href="style.css">
+<style>
+    /* Localized layout styles to keep style.css completely untouched */
+    .portal-card {
+        background: rgb(255, 255, 255);
+        padding: 30px;
+        border-radius: 8px;
+        max-width: 600px;
+        margin: 40px auto;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .payment-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 25px 0;
+    }
+    .pay-btn {
+        padding: 15px 25px;
+        border: 2px solid #6b3e00;
+        background: rgb(255, 255, 255);
+        color: #ff9500;
+        cursor: pointer;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 16px;
+        flex: 1;
+    }
+    .pay-btn.active {
+        background: #a75003c2;
+        color: rgb(255, 255, 255);
+    }
+    .payment-display-box {
+        background: #fafafa;
+        padding: 20px;
+        border-radius: 6px;
+        margin-bottom: 25px;
+        border: 1px dashed #6b3e00;
+        min-height: 150px;
+    }
+    .payment-display-box img {
+        max-width: 250px;
+        margin-top: 10px;
+        border-radius: 4px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+        text-align: left;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333;
+    }
+    .form-group input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .hidden { display: none; }
+    .success-msg {
+        color: #ffc400;
+        font-weight: bold;
+        padding: 20px;
+        background: #000000;
+        border-radius: 6px;
+    }
+    body {
+        background-image: url('assets4/background.png') !important; 
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="portal-card" id="portalCard">
+        <h1>Charity Dinner 2026</h1>
+        <p style="color: #000000;">Please choose your preferred donation method below:</p>
+
+        <div class="payment-toggle">
+            <button type="button" id="btnQr" class="pay-btn" onclick="showPayment('qr')">Scan QR Code</button>
+            <button type="button" id="btnAcc" class="pay-btn" onclick="showPayment('account')">Bank Transfer</button>
+        </div>
+
+        <div id="paymentBox" class="payment-display-box hidden">
+            <div id="qrContent" class="hidden">
+                <p><strong>Scan this QR Code to Pay:</strong></p>
+                <img src="assets2/payment-qr.jpg" alt="Payment QR" onerror="this.src='https://placehold.co/250x250?text=Scan+QR+Code'">
+            </div>
+            
+            <div id="accountContent" class="hidden">
+                <p><strong>Account Details Below:</strong></p>
+                <img src="assets3/account-payment.jpg" alt="Account Details" onerror="this.src='https://placehold.co/250x150?text=Account+Details+Image'">
+            </div>
+        </div>
+
+        <form id="publicDonationForm" class="hidden">
+            <div class="form-group">
+                <label>Table Number:</label>
+                <input type="text" id="tableNumber" placeholder="e.g. 12" required>
+            </div>
+            <div class="form-group">
+                <label>Donor Name (For Cheque):</label>
+                <input type="text" id="donorName" placeholder="e.g. Full Name" required>
+            </div>
+            <div class="form-group">
+                <label>Donated Amount (RM):</label>
+                <input type="number" id="amount" placeholder="e.g. 101" required>
+            </div>
+            <div class="form-group">
+                <label>Presented To / Disampaikan Kepada:</label>
+                <input type="text" id="presentedBy" placeholder="e.g. PERSATUAN PENGANUT SASTHA">
+            </div>
+            <div class="form-group">
+                <label>Upload Payment Proof / Receipt:</label>
+                <input type="file" id="receiptFile" accept="image/jpeg, image/png, image/heic" onchange="processReceipt(this)" required>
+            </div>
+
+            <button type="submit" style="width: 100%; margin-top: 15px;">Submit Donation Details</button>
+        </form>
+    </div>
+    
+    <div id="successBox" class="portal-card hidden success-msg">
+        <h2>Thank You For Your Generous Donation!</h2>
+        <h3>நீ செய்த தர்மம் தக்க சமயத்தில் உன்னை அரண் போல் பாதுகாக்கும்</h3>
+        <p>Your transaction processing proof has been submitted to the IT Room for validation.</p>
+    </div>
+</div>
+
+<script>
+    let base64Receipt = "";
+
+    function showPayment(method) {
+        document.getElementById('paymentBox').classList.remove('hidden');
+        document.getElementById('publicDonationForm').classList.remove('hidden');
+        
+        const qrContent = document.getElementById('qrContent');
+        const accContent = document.getElementById('accountContent');
+        const btnQr = document.getElementById('btnQr');
+        const btnAcc = document.getElementById('btnAcc');
+
+        if (method === 'qr') {
+            qrContent.classList.remove('hidden');
+            accContent.classList.add('hidden');
+            btnQr.classList.add('active');
+            btnAcc.classList.remove('active');
+        } else {
+            accContent.classList.remove('hidden');
+            qrContent.classList.add('hidden');
+            btnAcc.classList.add('active');
+            btnQr.classList.remove('active');
+        }
+    }
+
+    // AUTOMATIC IMAGE COMPRESSOR Engine to prevent localStorage limits
+    function processReceipt(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                
+                img.onload = function() {
+                    const MAX_WIDTH = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_WIDTH) {
+                            width *= MAX_WIDTH / height;
+                            height = MAX_WIDTH;
+                        }
+                    }
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Saves as 70% quality balanced JPEG data stream string
+                    base64Receipt = canvas.toDataURL('image/jpeg', 0.7);
+                    console.log("Receipt optimized successfully for IT room storage.");
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        try {
+            const donor = document.getElementById('donorName').value.trim();
+            const amountStr = document.getElementById('amount').value;
+            const table = document.getElementById('tableNumber').value.trim();
+            const presented = document.getElementById('presentedBy').value.trim();
+
+            const parsedAmount = parseFloat(amountStr);
+            const finalAmount = isNaN(parsedAmount) ? 0.00 : parsedAmount;
+            const finalReceipt = base64Receipt || 'https://placehold.co/300x400?text=Receipt+Missing';
+
+            let donations = [];
+            try {
+                const existingData = localStorage.getItem('donations');
+                if (existingData) {
+                    donations = JSON.parse(existingData);
+                }
+            } catch(storageErr) {
+                donations = [];
+            }
+
+            donations.push({
+                donor: donor,
+                amount: finalAmount,
+                table: table,
+                presented: presented || 'N/A',
+                receipt: finalReceipt,
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+            
+            localStorage.setItem('donations', JSON.stringify(donations));
+
+            document.getElementById('portalCard').classList.add('hidden');
+            document.getElementById('successBox').classList.remove('hidden');
+            document.getElementById('publicDonationForm').reset();
+            base64Receipt = ""; 
+
+        } catch (globalError) {
+            alert("Submission Error: " + globalError.message);
+        }
+    });
+</script>
+</body>
+</html>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+    const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- MAKE SURE THIS LINE IS NOT MISSING OR EMPTY
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    window.base64Receipt = "";
+
+    function showPayment(method) {
+        document.getElementById('paymentBox').classList.remove('hidden');
+        document.getElementById('publicDonationForm').classList.remove('hidden');
+        
+        const qrContent = document.getElementById('qrContent');
+        const accContent = document.getElementById('accountContent');
+        const btnQr = document.getElementById('btnQr');
+        const btnAcc = document.getElementById('btnAcc');
+
+        if (method === 'qr') {
+            qrContent.classList.remove('hidden');
+            accContent.classList.add('hidden');
+            btnQr.classList.add('active');
+            btnAcc.classList.remove('active');
+        } else {
+            accContent.classList.remove('hidden');
+            qrContent.classList.add('hidden');
+            btnAcc.classList.add('active');
+            btnQr.classList.remove('active');
+        }
+    }
+
+    function processReceipt(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const MAX_WIDTH = 600;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_WIDTH) { width *= MAX_WIDTH / height; height = MAX_WIDTH; }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    base64Receipt = canvas.toDataURL('image/jpeg', 0.6); // Slightly lower quality to ensure fast upload over mobile networks
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const donor = document.getElementById('donorName').value.trim();
+        const amountStr = document.getElementById('amount').value;
+        const table = document.getElementById('tableNumber').value.trim();
+        const presented = document.getElementById('presentedBy').value.trim();
+
+        const finalAmount = isNaN(parseFloat(amountStr)) ? 0.00 : parseFloat(amountStr);
+        const finalReceipt = base64Receipt || 'https://placehold.co/300x400?text=Receipt+Missing';
+
+        // PUSH TO THE LIVE CENTRAL CLOUD DATABASE
+        database.ref('donations').push({
+            donor: donor,
+            amount: finalAmount,
+            table: table,
+            presented: presented || 'N/A',
+            receipt: finalReceipt,
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        }).then(() => {
+            // Success actions
+            document.getElementById('portalCard').classList.add('hidden');
+            document.getElementById('successBox').classList.remove('hidden');
+            document.getElementById('publicDonationForm').reset();
+            base64Receipt = "";
+        }).catch((error) => {
+            alert("Cloud submission error: " + error.message);
+        });
+    });
+</script>
