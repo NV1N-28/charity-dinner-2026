@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IT Room Control Dashboard</title>
 <link rel="stylesheet" href="style.css">
 <style>
@@ -97,208 +99,126 @@
                 <th>Action</th>
             </tr>
         </thead>
-        <tbody id="donationTable"></tbody>
+        <tbody id="donationTable">
+            <tr><td colspan="6">Connecting to central cloud stream...</td></tr>
+        </tbody>
     </table>
 </div>
 
-<script>
-    function loadLiveRecords() {
-        let donations = JSON.parse(localStorage.getItem('donations')) || [];
-        const tableBody = document.getElementById('donationTable');
-        tableBody.innerHTML = '';
-
-        if(donations.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6">No incoming donation entries submitted yet.</td></tr>`;
-            return;
-        }
-
-        donations.forEach((d, index) => {
-            tableBody.innerHTML += `
-            <tr>
-                <td><strong>${d.table}</strong></td>
-                <td>${d.donor}</td>
-                <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
-                <td>${d.presented}</td>
-                <td>
-                    <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')" title="Click to view">
-                    <button class="dl-btn" onclick="downloadReceiptImage(${index})">Download Image</button>
-                </td>
-                <td>
-                    <button class="action-btn" onclick="generateCheque(${index})">Verify & Load Check</button>
-                </td>
-            </tr>
-            `;
-        });
-    }
-
-    // NEW CONVERSION ENGINE: Turns raw text codes into actual viewable image files
-    function downloadReceiptImage(index) {
-        let donations = JSON.parse(localStorage.getItem('donations')) || [];
-        const record = donations[index];
-        
-        if (!record || !record.receipt.startsWith('data:')) {
-            alert("No valid receipt image found for this entry.");
-            return;
-        }
-
-        // Split the base64 text into content type and raw data chunks
-        const parts = record.receipt.split(',');
-        const mimeType = parts[0].match(/:(.*?);/)[1];
-        const rawString = atob(parts[1]);
-        let length = rawString.length;
-        const u8Array = new Uint8Array(length);
-        
-        while(length--) {
-            u8Array[length] = rawString.charCodeAt(length);
-        }
-        
-        // Bundle chunks into an authentic browser image file binary object
-        const blob = new Blob([u8Array], {type: mimeType});
-        
-        // Create an automatic click thread trigger link
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        
-        // Format clean name file string
-        const safeName = record.donor.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-        link.download = `Table_${record.table}_Receipt_${safeName}.jpg`;
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    function generateCheque(index) {
-        localStorage.setItem('activeChequeIndex', index);
-        window.location.href = 'view-cheque.html';
-    }
-
-    function exportListToExcel() {
-        let donations = JSON.parse(localStorage.getItem('donations')) || [];
-        
-        if (donations.length === 0) {
-            alert("The record database list is currently empty. There is nothing to export yet!");
-            return;
-        }
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Table Number,Donor Name,Amount (RM),Presented By,Timestamp\n";
-
-        donations.forEach(d => {
-            let cleanDonor = d.donor.replace(/,/g, '');
-            let cleanPresented = d.presented.replace(/,/g, '');
-            csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${cleanPresented}","${d.time}"\n`;
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Charity_Dinner_Donations_MasterList.csv`);
-        document.body.appendChild(link);
-        
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    function clearAllTestingRecords() {
-        if (confirm("Are you absolutely sure you want to clear all data entries? This will delete all live table submissions permanently.")) {
-            localStorage.removeItem('donations');
-            localStorage.removeItem('activeChequeIndex');
-            loadLiveRecords();
-        }
-    }
-
-    window.onload = loadLiveRecords;
-</script>
-</body>
-</html>
-
+<!-- Firebase Core SDK Core Packages loaded inside body context safely -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
     // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
     const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- MAKE SURE THIS LINE IS NOT MISSING OR EMPTY
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
 
+    // Initialize Firebase Connection Engine safely
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    let globalDonationsList = []; // Keeps track of unique cloud ID keys for generation processing
-
-   // LIVE LISTEN STREAM ENGINE: Watches cloud changes and updates cleanly without doubling rows
-// 1. KILL ANY PREVIOUS ACTIVE CLOUD LISTENERS TO AVOID DOUBLE COPIES
-database.ref('donations').off();
-
-// 2. OPEN A FRESH, SINGLE LIVE WATCH LOOP
-database.ref('donations').on('value', function(snapshot) {
-    const tableBody = document.getElementById('donationTable');
     
-    // Hard-wipe the laptop screen elements completely
-    tableBody.innerHTML = ''; 
-    globalDonationsList = [];
+    // Core state arrays
+    let globalDonationsList = []; 
 
-    if (!snapshot.exists()) {
-        tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
-        return;
-    }
+    // LIVE LISTEN STREAM ENGINE: Watches cloud changes and updates cleanly without doubling rows
+    // 1. KILL ANY PREVIOUS ACTIVE CLOUD LISTENERS TO AVOID DOUBLE COPIES
+    database.ref('donations').off();
 
-    let index = 0;
-    snapshot.forEach(childSnapshot => {
-        const idKey = childSnapshot.key;
-        const d = childSnapshot.val();
+    // 2. OPEN A FRESH, SINGLE LIVE WATCH LOOP WITH RENDERING FILTERS
+    database.ref('donations').on('value', function(snapshot) {
+        const tableBody = document.getElementById('donationTable');
         
-        globalDonationsList.push({ id: idKey, data: d });
+        // Hard-wipe the elements completely before redrawing
+        tableBody.innerHTML = ''; 
+        globalDonationsList = [];
 
-        // Draw the fresh clean entry rows
-        tableBody.innerHTML += `
-        <tr>
-            <td><strong>${d.table}</strong></td>
-            <td>${d.donor}</td>
-            <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
-            <td>${d.presented}</td>
-            <td>
-                <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
-                <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
-            </td>
-            <td>
-                <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
-            </td>
-        </tr>
-        `;
-        index++;
+        if (!snapshot.exists()) {
+            tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
+            return;
+        }
+
+        // Tracking Set to structurally guarantee a row cannot render twice
+        const seenIds = new Set();
+        let index = 0;
+
+        snapshot.forEach(childSnapshot => {
+            const idKey = childSnapshot.key;
+            const d = childSnapshot.val();
+            
+            // If unique Firebase push key has already been rendered, instantly skip it
+            if (seenIds.has(idKey)) {
+                return;
+            }
+            seenIds.add(idKey);
+
+            globalDonationsList.push({ id: idKey, data: d });
+
+            // Draw the fresh clean entry rows safely
+            tableBody.innerHTML += `
+            <tr>
+                <td><strong>${d.table}</strong></td>
+                <td>${d.donor}</td>
+                <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                <td>${d.presented || 'N/A'}</td>
+                <td>
+                    <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')" title="Click to view">
+                    <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
+                </td>
+                <td>
+                    <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
+                </td>
+            </tr>
+            `;
+            index++;
+        });
     });
-});
+
+    // CONVERSION ENGINE: Turns raw Base64 data strings back into standard downloadable JPEG attachments
     function downloadReceiptImage(index) {
+        if (!globalDonationsList[index]) return;
+        
         const record = globalDonationsList[index].data;
         if (!record || !record.receipt.startsWith('data:')) {
             alert("No valid receipt image found.");
             return;
         }
-        const parts = record.receipt.split(',');
-        const mimeType = parts[0].match(/:(.*?);/)[1];
-        const rawString = atob(parts[1]);
-        let length = rawString.length;
-        const u8Array = new Uint8Array(length);
-        while(length--) { u8Array[length] = rawString.charCodeAt(length); }
-        const blob = new Blob([u8Array], {type: mimeType});
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        const safeName = record.donor.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-        link.download = `Table_${record.table}_Receipt_${safeName}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        
+        try {
+            const parts = record.receipt.split(',');
+            const mimeType = parts[0].match(/:(.*?);/)[1];
+            const rawString = atob(parts[1]);
+            let length = rawString.length;
+            const u8Array = new Uint8Array(length);
+            
+            while(length--) { 
+                u8Array[length] = rawString.charCodeAt(length); 
+            }
+            
+            const blob = new Blob([u8Array], {type: mimeType});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            
+            const safeName = record.donor.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            link.download = `Table_${record.table}_Receipt_${safeName}.jpg`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            alert("Error processing file download: " + err.message);
+        }
     }
 
     function generateCheque(idKey) {
-        // Pass the cloud database ID key to the generation view securely
+        // Pass the cloud database ID key to the generation view securely across tabs
         localStorage.setItem('activeCloudChequeId', idKey);
         window.location.href = 'view-cheque.html';
     }
@@ -314,7 +234,7 @@ database.ref('donations').on('value', function(snapshot) {
         globalDonationsList.forEach(item => {
             const d = item.data;
             let cleanDonor = d.donor.replace(/,/g, '');
-            let cleanPresented = d.presented.replace(/,/g, '');
+            let cleanPresented = (d.presented || 'N/A').replace(/,/g, '');
             csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${cleanPresented}","${d.time}","${d.receipt}"\n`;
         });
 
@@ -331,7 +251,11 @@ database.ref('donations').on('value', function(snapshot) {
         if (confirm("Are you absolutely sure you want to wipe the central cloud database? All event records will be lost permanently.")) {
             database.ref('donations').remove().then(() => {
                 alert("Database wiped successfully!");
+            }).catch(err => {
+                alert("Error wiping database: " + err.message);
             });
         }
     }
 </script>
+</body>
+</html>
