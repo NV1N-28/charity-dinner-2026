@@ -75,43 +75,90 @@
         display: inline-block;
     }
     .dl-btn:hover { background: #333333; }
+
+    /* ========================================== */
+    /* NEW SECURE LOGIN SCREEN OVERLAY STYLES    */
+    /* ========================================== */
+    #loginOverlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+    }
+    .login-modal {
+        background: #ffffff;
+        padding: 35px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        text-align: center;
+        border: 2px solid #6b3e00;
+    }
+    .login-modal h2 { margin-top: 0; color: #6b3e00; font-size: 24px; }
+    .login-field { margin-bottom: 18px; text-align: left; }
+    .login-field label { display: block; margin-bottom: 6px; font-weight: bold; color: #333; }
+    .login-field input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+    
+    /* Captcha Layout elements */
+    .captcha-container {
+        background: #f0f0f0;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 18px;
+        color: #6b3e00;
+        letter-spacing: 2px;
+        margin-bottom: 12px;
+        border: 1px dashed #6b3e00;
+        display: inline-block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .login-submit-btn {
+        width: 100%; background: #6b3e00; color: white; border: none; padding: 12px; 
+        font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;
+    }
+    .login-submit-btn:hover { background: #523000; }
+    .error-alert { color: #d32f2f; font-weight: bold; margin-bottom: 15px; display: none; font-size: 14px; }
 </style>
 </head>
 <body>
 
-<script>
-    // ==========================================
-    // STAGE 1: SECURE LOGIN GATE (RUNS FIRST)
-    // ==========================================
-    const ADMIN_USERNAME = "Navin12";
-    const ADMIN_PASSWORD = "ZXCV123"; // Change these to whatever you prefer!
+<!-- ========================================== -->
+<!-- NEW INTERACTIVE LOGIN MODAL OVERLAY MAP    -->
+<!-- ========================================== -->
+<div id="loginOverlay">
+    <div class="login-modal">
+        <h2>IT Dashboard Gateway</h2>
+        <p style="color:#555; font-size: 14px; margin-bottom: 20px;">Please authenticate to access live dinner stream records.</p>
+        
+        <div class="error-alert" id="loginError">Invalid Credentials or CAPTCHA answer!</div>
 
-    function runSecurityCheck() {
-        if (sessionStorage.getItem("adminAuthenticated") === "true") {
-            return; // Authorized already for this window session
-        }
+        <form id="adminLoginForm" onsubmit="handleModalLogin(event)">
+            <div class="login-field">
+                <label>Admin Username:</label>
+                <input type="text" id="adminUserField" placeholder="Enter username" required>
+            </div>
+            <div class="login-field">
+                <label>Security Password:</label>
+                <input type="password" id="adminPassField" placeholder="Enter security password" required>
+            </div>
+            
+            <div class="login-field">
+                <label>Security Verification (CAPTCHA):</label>
+                <div class="captcha-container" id="captchaBox">Compute: 5 + 3 = ?</div>
+                <input type="number" id="captchaInputField" placeholder="Type the correct answer" required>
+            </div>
 
-        let enteredUser = prompt("Enter Admin Username:");
-        if (enteredUser === null) { kickUserOut(); return; }
-
-        let enteredPass = prompt("Enter Admin Password:");
-        if (enteredPass === null) { kickUserOut(); return; }
-
-        if (enteredUser === ADMIN_USERNAME && enteredPass === ADMIN_PASSWORD) {
-            sessionStorage.setItem("adminAuthenticated", "true");
-            alert("Access Granted. Welcome to the IT Room Control Dashboard.");
-        } else {
-            alert("Incorrect credentials! Access Denied.");
-            kickUserOut();
-        }
-    }
-
-    function kickUserOut() {
-        window.location.href = "index.html"; // Send unauthorized visitors back
-    }
-
-    runSecurityCheck();
-</script>
+            <button type="submit" class="login-submit-btn">Verify & Unlock Dashboard</button>
+        </form>
+    </div>
+</div>
 
 <div class="container">
     <h1>Command Dashboard</h1>
@@ -134,76 +181,147 @@
             </tr>
         </thead>
         <tbody id="donationTable">
-            <tr><td colspan="6">Connecting to live cloud stream...</td></tr>
+            <tr><td colspan="6">Awaiting system access verification...</td></tr>
         </tbody>
     </table>
 </div>
 
+<!-- Core Firebase Delivery Scripts -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
+    // =========================================================
+    // SYSTEM ENCRYPTION GATEWAY: Multi-Admin Credential Storage
+    // =========================================================
+    const ADMIN_ACCOUNTS = [
+        { user: "admin1", pass: "1234" },
+        { user: "admin2", pass: "1234" },
+        { user: "admin3", pass: "1234" }
+    ];
 
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    let globalDonationsList = []; 
+    let correctCaptchaResult = 0;
 
-    // LIVE LISTEN STREAM ENGINE: Watches cloud changes and updates your screen instantly
-    database.ref('donations').on('value', function(snapshot) {
-        const tableBody = document.getElementById('donationTable');
-        tableBody.innerHTML = '';
-        globalDonationsList = [];
+    // Generates a dynamic math calculation challenge on instantiation
+    function generateMathCaptcha() {
+        const num1 = Math.floor(Math.random() * 10) + 1; 
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        correctCaptchaResult = num1 + num2;
+        document.getElementById('captchaBox').innerText = `Security Check: ${num1} + ${num2} = ?`;
+    }
 
-        if (!snapshot.exists()) {
-            tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
+    function verifySessionGate() {
+        if (sessionStorage.getItem("adminAuthenticated") === "true") {
+            document.getElementById('loginOverlay').style.display = 'none';
+            initializeFirebaseEngine();
+        } else {
+            generateMathCaptcha();
+        }
+    }
+
+    function handleModalLogin(e) {
+        e.preventDefault();
+        
+        const enteredUser = document.getElementById('adminUserField').value.trim();
+        const enteredPass = document.getElementById('adminPassField').value.trim();
+        const enteredCaptcha = parseInt(document.getElementById('captchaInputField').value.trim(), 10);
+        const errorDisplay = document.getElementById('loginError');
+
+        // Verify math input challenges
+        if (enteredCaptcha !== correctCaptchaResult) {
+            errorDisplay.innerText = "Security CAPTCHA verification failed! Try again.";
+            errorDisplay.style.display = 'block';
+            generateMathCaptcha();
+            document.getElementById('captchaInputField').value = '';
             return;
         }
 
-        // Tracking set to strictly guarantee a row cannot render twice on screen
-        const seenIds = new Set();
-        let index = 0;
+        // Search credential matrix array for valid combination pairs
+        const matchedAccount = ADMIN_ACCOUNTS.find(acc => acc.user === enteredUser && acc.pass === enteredPass);
 
-        snapshot.forEach(childSnapshot => {
-            const idKey = childSnapshot.key;
-            const d = childSnapshot.val();
+        if (matchedAccount) {
+            sessionStorage.setItem("adminAuthenticated", "true");
+            errorDisplay.style.display = 'none';
+            document.getElementById('loginOverlay').style.display = 'none';
             
-            // STAGE 2 LOCK: Skip drawing this element if the ID key is already displayed
-            if (seenIds.has(idKey)) {
+            // Un-freeze data streams dynamically
+            initializeFirebaseEngine();
+        } else {
+            errorDisplay.innerText = "Invalid Username or Password combination!";
+            errorDisplay.style.display = 'block';
+            generateMathCaptcha();
+            document.getElementById('adminPassField').value = '';
+            document.getElementById('captchaInputField').value = '';
+        }
+    }
+
+    // Initialize security sequence verification immediately 
+    window.addEventListener('DOMContentLoaded', verifySessionGate);
+
+    // =========================================================
+    // DATA STREAM CONTROLLERS (Runs only post-authentication)
+    // =========================================================
+    let database;
+    let globalDonationsList = [];
+
+    function initializeFirebaseEngine() {
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        database = firebase.database();
+
+        // Establish central network link
+        database.ref('donations').on('value', function(snapshot) {
+            const tableBody = document.getElementById('donationTable');
+            tableBody.innerHTML = '';
+            globalDonationsList = [];
+
+            if (!snapshot.exists()) {
+                tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
                 return;
             }
-            seenIds.add(idKey);
 
-            // Store both data properties and database record references cleanly
-            globalDonationsList.push({ id: idKey, data: d });
+            const seenIds = new Set();
+            let index = 0;
 
-            tableBody.innerHTML += `
-            <tr>
-                <td><strong>${d.table}</strong></td>
-                <td>${d.donor}</td>
-                <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
-                <td>${d.presented || 'N/A'}</td>
-                <td>
-                    <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
-                    <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
-                </td>
-                <td>
-                    <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
-                </td>
-            </tr>
-            `;
-            index++;
+            snapshot.forEach(childSnapshot => {
+                const idKey = childSnapshot.key;
+                const d = childSnapshot.val();
+                
+                if (seenIds.has(idKey)) return;
+                seenIds.add(idKey);
+
+                globalDonationsList.push({ id: idKey, data: d });
+
+                tableBody.innerHTML += `
+                <tr>
+                    <td><strong>${d.table}</strong></td>
+                    <td>${d.donor}</td>
+                    <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${d.presented || 'N/A'}</td>
+                    <td>
+                        <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
+                        <button class="dl-btn" onclick="downloadReceiptImage(${index})">💾 Download Image</button>
+                    </td>
+                    <td>
+                        <button class="action-btn" onclick="generateCheque('${idKey}')">Verify & Load Check</button>
+                    </td>
+                </tr>
+                `;
+                index++;
+            });
         });
-    });
+    }
 
     function downloadReceiptImage(index) {
         if (!globalDonationsList[index]) return;
@@ -258,6 +376,7 @@
     }
 
     function clearAllTestingRecords() {
+        if (!database) return;
         if (confirm("Are you absolutely sure you want to wipe the central cloud database? All event records will be lost permanently.")) {
             database.ref('donations').remove().then(() => {
                 alert("Database wiped successfully!");
