@@ -77,7 +77,34 @@
     .dl-btn:hover { background: #333333; }
 
     /* ========================================== */
-    /* NEW SECURE LOGIN SCREEN OVERLAY STYLES    */
+    /* LIVE FINANCIAL COUNTER CARD STYLES         */
+    /* ========================================== */
+    .total-counter-card {
+        background: linear-gradient(135deg, #6b3e00, #a75003);
+        color: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    }
+    .total-counter-card h2 {
+        margin: 0;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.9;
+    }
+    .total-counter-card .total-amount {
+        margin: 5px 0 0 0;
+        font-size: 36px;
+        font-weight: bold;
+        color: #ffc400;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* ========================================== */
+    /* SECURE LOGIN SCREEN OVERLAY STYLES         */
     /* ========================================== */
     #loginOverlay {
         position: fixed;
@@ -129,9 +156,6 @@
 </head>
 <body>
 
-<!-- ========================================== -->
-<!-- NEW INTERACTIVE LOGIN MODAL OVERLAY MAP    -->
-<!-- ========================================== -->
 <div id="loginOverlay">
     <div class="login-modal">
         <h2>IT Dashboard Gateway</h2>
@@ -162,6 +186,12 @@
 
 <div class="container">
     <h1>Command Dashboard</h1>
+    
+    <div class="total-counter-card">
+        <h2>Grand Total Donations Raised Real-Time</h2>
+        <div class="total-amount" id="liveGrandTotal">RM 0.00</div>
+    </div>
+
     <p>Review entries:</p>
 
     <div class="admin-actions-bar">
@@ -186,7 +216,6 @@
     </table>
 </div>
 
-<!-- Core Firebase Delivery Scripts -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -283,11 +312,15 @@
         // Establish central network link
         database.ref('donations').on('value', function(snapshot) {
             const tableBody = document.getElementById('donationTable');
+            const totalDisplay = document.getElementById('liveGrandTotal');
+            
             tableBody.innerHTML = '';
             globalDonationsList = [];
+            let runningGrandTotal = 0; // Baseline tracker for layout sums
 
             if (!snapshot.exists()) {
                 tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
+                totalDisplay.innerText = "RM 0.00";
                 return;
             }
 
@@ -303,11 +336,17 @@
 
                 globalDonationsList.push({ id: idKey, data: d });
 
+                // Safely calculate math parsing without causing string compilation concatenation bugs
+                const parsedAmount = parseFloat(d.amount);
+                if (!isNaN(parsedAmount)) {
+                    runningGrandTotal += parsedAmount;
+                }
+
                 tableBody.innerHTML += `
                 <tr>
                     <td><strong>${d.table}</strong></td>
                     <td>${d.donor}</td>
-                    <td><strong style="color:#6b3e00;">RM ${parseFloat(d.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                    <td><strong style="color:#6b3e00;">RM ${parsedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
                     <td>${d.presented || 'N/A'}</td>
                     <td>
                         <img src="${d.receipt}" style="max-width: 70px; border: 1px solid #ccc; display:block; margin:0 auto; cursor:pointer;" onclick="window.open('${d.receipt}')">
@@ -319,6 +358,12 @@
                 </tr>
                 `;
                 index++;
+            });
+
+            // Display live rolled-up value changes inside header card element smoothly
+            totalDisplay.innerText = "RM " + runningGrandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
         });
     }
