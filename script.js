@@ -1,23 +1,119 @@
-const form = document.getElementById('donationForm');
+// PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-// UI Toggle for Payment Methods
-function selectPayment(method) {
-    const qrBox = document.getElementById('qrInstructions');
-    const accBox = document.getElementById('accountInstructions');
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// Variable to temporarily house compiled compression string
+let compressedReceiptBase64 = "";
+
+// =========================================================
+// NEW: CORE CONFIGS & LIVE CALCULATION FOR BRICK SYSTEM
+// =========================================================
+const COST_NORMAL_BRICK = 10;
+const COST_GRANITE_BRICK = 301;
+
+function handleContributionViewType(chosenMode) {
+    const brickContainer = document.getElementById('brickInputSection');
+    const amountField = document.getElementById('amount');
+    
+    if (chosenMode === 'money') {
+        brickContainer.style.display = 'none';
+        amountField.readOnly = false;
+        amountField.value = ""; // Clear values to let user input fresh amount
+        amountField.placeholder = "e.g. 101";
+    } else {
+        brickContainer.style.display = 'block';
+        amountField.readOnly = true;
+        tallyTotalBrickCost();
+    }
+}
+
+function tallyTotalBrickCost() {
+    const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+    const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+    
+    // Core structural calculation matching exact rules
+    const overallSum = (countNormal * COST_NORMAL_BRICK) + (countGranite * COST_GRANITE_BRICK);
+    
+    // Ship final values straight to master visible property field input
+    document.getElementById('amount').value = overallSum;
+}
+// =========================================================
+
+// INTERACTIVE PANEL CONTROLLER: Seamlessly handles opening sections
+function showPayment(method) {
+    document.getElementById('paymentBox').classList.remove('hidden');
+    document.getElementById('publicDonationForm').classList.remove('hidden');
+    
+    const qrContent = document.getElementById('qrContent');
+    const accContent = document.getElementById('accountContent');
     const btnQr = document.getElementById('btnQr');
     const btnAcc = document.getElementById('btnAcc');
 
+    qrContent.classList.add('hidden');
+    accContent.classList.add('hidden');
+    btnQr.classList.remove('active');
+    btnAcc.classList.remove('active');
+
     if (method === 'qr') {
-        qrBox.classList.remove('hidden');
-        accBox.classList.add('hidden');
+        qrContent.classList.remove('hidden');
         btnQr.classList.add('active');
-        btnAcc.classList.remove('active');
-    } else {
-        accBox.classList.remove('hidden');
-        qrBox.classList.add('hidden');
+    } else if (method === 'account') {
+        accContent.classList.remove('hidden');
         btnAcc.classList.add('active');
-        btnQr.classList.remove('active');
     }
+}
+
+// IMAGE PROCESSING ENGINE: Compresses massive mobile photo files down instantly
+function processReceipt(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Max layout bounds
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Export to 70% quality balanced JPEG payload string
+            compressedReceiptBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 // Numbers-to-Words Engine for Malaysian Ringgit
@@ -54,48 +150,69 @@ function convertNumberToWords(amount) {
     return (ringgitWords + senWords + ' ONLY').replace(/\s+/g, ' ').trim();
 }
 
-// Intercept Form Submissions
-form.addEventListener('submit', function(e){
+// SUBMIT STREAM CONTROLLER: Processes submissions exactly once
+document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    const donor = document.getElementById('donorName').value;
-    const amount = document.getElementById('amount').value;
-    const table = document.getElementById('tableNumber').value;
-    const presented = document.getElementById('presentedBy').value;
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // STAGE 1 LOCK: Instantly freeze button interaction to destroy double-click loops
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Processing & Saving Entry... Please Wait...";
+    submitBtn.style.background = "#cccccc";
+    submitBtn.style.cursor = "not-allowed";
 
-    const numAmount = parseFloat(amount);
+    if (!compressedReceiptBase64) {
+        alert("Receipt image processing is still executing. Please wait a brief second and tap submit again.");
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Submit Donation Details";
+        submitBtn.style.background = "#6b3e00";
+        submitBtn.style.cursor = "pointer";
+        return;
+    }
 
-    // Format raw box numbers with standard accounting comma splits
-    const formattedAmount = numAmount.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
+    // Map inputs cleanly
+    const tableNum = document.getElementById('tableNumber').value;
+    const donorName = document.getElementById('donorName').value;
+    const donateAmount = document.getElementById('amount').value;
+    const presentedTo = document.getElementById('presentedBy').value || "N/A";
+    
+    // Check contribution meta selection strings to supply clear labels back to the admin control desk
+    const mainContribType = document.querySelector('input[name="mainContribution"]:checked').value;
+    let finalNote = presentedTo;
+    
+    if (mainContribType === 'brick') {
+        const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+        const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+        finalNote = `🧱 [Bricks Order -> Normal: ${countNormal} | Granite: ${countGranite}] — Presented via: ${presentedTo}`;
+    }
 
-    const dynamicWords = convertNumberToWords(numAmount);
+    const now = new Date();
+    const timestampString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' | ' + now.toLocaleDateString();
 
-    // Render straight to visual layers using unchanged class coordinates
-    document.getElementById('payeeText').innerText = donor;
-    document.getElementById('amountWordsText').innerText = dynamicWords;
-    document.getElementById('amountText').innerText = formattedAmount;
-    document.getElementById('presentedText').innerText = presented;
-    document.getElementById('tableText').innerText = 'TABLE ' + table;
+    const transactionPayload = {
+        table: tableNum,
+        donor: donorName,
+        amount: donateAmount,
+        presented: finalNote,
+        receipt: compressedReceiptBase64,
+        time: timestampString
+    };
 
-    // Push data to localStorage for admin visibility
-    saveDonation(donor, amount, table, presented);
+    // Stream up to central cloud path node
+    database.ref('donations').push(transactionPayload)
+        .then(() => {
+            // Wipe form out of perspective and scale visibility onto success elements
+            document.getElementById('portalCard').classList.add('hidden');
+            document.getElementById('successBox').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        })
+        .catch((error) => {
+            alert("Database Error: " + error.message);
+            // Unfreeze safely if network dropped completely
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Submit Donation Details";
+            submitBtn.style.background = "#6b3e00";
+            submitBtn.style.cursor = "pointer";
+        });
 });
-
-function saveDonation(donor, amount, table, presented){
-    let donations = JSON.parse(localStorage.getItem('donations')) || [];
-    donations.push({
-        donor,
-        amount: parseFloat(amount).toFixed(2),
-        table,
-        presented: presented || 'N/A',
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    });
-    localStorage.setItem('donations', JSON.stringify(donations));
-}
-
-function downloadCheque(){
-    alert('Mock cheque rendering complete! Data stored for IT room printing options.');
-}
