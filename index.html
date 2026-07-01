@@ -81,6 +81,33 @@
         margin: 0 !important;
         padding: 0 !important;
     }
+
+    /* Beautiful custom styles for the new item contribution block */
+    .contribution-selector-box {
+        margin-bottom: 20px; 
+        padding: 18px; 
+        border: 2px solid #6b3e00; 
+        border-radius: 10px; 
+        background: #fffcf7; 
+        text-align: left;
+    }
+    .brick-row-item {
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 12px; 
+        background: #ffffff; 
+        padding: 8px 12px; 
+        border-radius: 6px; 
+        border: 1px solid #e0e0e0;
+    }
+    .brick-qty-field {
+        width: 70px; 
+        padding: 6px; 
+        border-radius: 4px; 
+        border: 1px solid #ccc; 
+        text-align: center;
+    }
 </style>
 </head>
 <body>
@@ -108,6 +135,54 @@
         </div>
 
         <form id="publicDonationForm" class="hidden">
+            
+            <!-- ========================================================= -->
+            <!-- NEW: DYNAMIC BRICK & DONATION TYPE SELECTION INTERFACE   -->
+            <!-- ========================================================= -->
+            <div class="contribution-selector-box">
+                <label style="font-weight: bold; color: #6b3e00; display: block; margin-bottom: 12px; font-size: 16px;">I wish to contribute via:</label>
+                
+                <label style="display: block; margin-bottom: 10px; font-weight: bold; cursor: pointer;">
+                    <input type="radio" name="mainContribution" value="money" checked onclick="handleContributionViewType('money')"> 
+                    Direct Financial Donation (RM)
+                </label>
+                
+                <label style="display: block; font-weight: bold; cursor: pointer;">
+                    <input type="radio" name="mainContribution" value="brick" onclick="handleContributionViewType('brick')"> 
+                    Sponsor Sacred Building Bricks
+                </label>
+
+                <!-- Sub-Section: Bricks Counter Fields (Toggled Dynamically) -->
+                <div id="brickInputSection" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                    <p style="margin: 0 0 12px 0; font-size: 14px; color: #555; font-style: italic;">Enter the number of bricks you wish to purchase:</p>
+                    
+                    <!-- Normal Brick Counter Row -->
+                    <div class="brick-row-item">
+                        <div>
+                            <span style="font-weight: bold; display: block;">Normal Brick</span>
+                            <span style="font-size: 13px; color: #666;">RM 10.00 / unit</span>
+                        </div>
+                        <div>
+                            <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
+                            <input type="number" id="qtyNormalBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
+                        </div>
+                    </div>
+                    
+                    <!-- Granite Brick Counter Row -->
+                    <div class="brick-row-item">
+                        <div>
+                            <span style="font-weight: bold; display: block; color: #a75003;">🧱 Premium Granite Brick</span>
+                            <span style="font-size: 13px; color: #666;">RM 301.00 / unit</span>
+                        </div>
+                        <div>
+                            <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
+                            <input type="number" id="qtyGraniteBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ========================================================= -->
+
             <div class="form-group">
                 <label>Table Number:</label>
                 <input type="text" id="tableNumber" placeholder="e.g. 12" required>
@@ -118,6 +193,7 @@
             </div>
             <div class="form-group">
                 <label>Donated Amount (RM):</label>
+                <!-- This field will automatically adjust read-only status based on selections -->
                 <input type="number" id="amount" placeholder="e.g. 101" required>
             </div>
             <div class="form-group">
@@ -129,7 +205,7 @@
                 <input type="file" id="receiptFile" accept="image/jpeg, image/png, image/heic" onchange="processReceipt(this)" required>
             </div>
 
-            <button type="submit" id="submitBtn" style="width: 100%; margin-top: 15px; padding: 12px; font-weight: bold; cursor: pointer;">Submit Donation Details</button>
+            <button type="submit" id="submitBtn" style="width: 100%; margin-top: 15px; padding: 12px; font-weight: bold; cursor: pointer; background: #6b3e00; color: white; border: none; border-radius: 4px;">Submit Donation Details</button>
         </form>
     </div>
     
@@ -140,150 +216,6 @@
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-<script>
-    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-
-    // Variable to temporarily house compiled compression string
-    let compressedReceiptBase64 = "";
-
-    // INTERACTIVE PANEL CONTROLLER: Seamlessly handles opening sections
-    function showPayment(method) {
-        document.getElementById('paymentBox').classList.remove('hidden');
-        document.getElementById('publicDonationForm').classList.remove('hidden');
-        
-        const qrContent = document.getElementById('qrContent');
-        const accContent = document.getElementById('accountContent');
-        const btnQr = document.getElementById('btnQr');
-        const btnAcc = document.getElementById('btnAcc');
-
-        qrContent.classList.add('hidden');
-        accContent.classList.add('hidden');
-        btnQr.classList.remove('active');
-        btnAcc.classList.remove('active');
-
-        if (method === 'qr') {
-            qrContent.classList.remove('hidden');
-            btnQr.classList.add('active');
-        } else if (method === 'account') {
-            accContent.classList.remove('hidden');
-            btnAcc.classList.add('active');
-        }
-    }
-
-    // IMAGE PROCESSING ENGINE: Compresses massive mobile photo files down instantly
-    function processReceipt(input) {
-        const file = input.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                // Max layout bounds
-                const MAX_WIDTH = 800;
-                const MAX_HEIGHT = 800;
-
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // Export to 70% quality balanced JPEG payload string
-                compressedReceiptBase64 = canvas.toDataURL('image/jpeg', 0.7);
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    // SUBMIT STREAM CONTROLLER: Processes submissions exactly once
-    document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const submitBtn = document.getElementById('submitBtn');
-        
-        // STAGE 1 LOCK: Instantly freeze button interaction to destroy double-click loops
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Processing & Saving Entry... Please Wait...";
-        submitBtn.style.background = "#cccccc";
-        submitBtn.style.cursor = "not-allowed";
-
-        if (!compressedReceiptBase64) {
-            alert("Receipt image processing is still executing. Please wait a brief second and tap submit again.");
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Submit Donation Details";
-            submitBtn.style.background = "";
-            submitBtn.style.cursor = "pointer";
-            return;
-        }
-
-        // Map inputs cleanly
-        const tableNum = document.getElementById('tableNumber').value;
-        const donorName = document.getElementById('donorName').value;
-        const donateAmount = document.getElementById('amount').value;
-        const presentedTo = document.getElementById('presentedBy').value || "N/A";
-        
-        const now = new Date();
-        const timestampString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' | ' + now.toLocaleDateString();
-
-        const transactionPayload = {
-            table: tableNum,
-            donor: donorName,
-            amount: donateAmount,
-            presented: presentedTo,
-            receipt: compressedReceiptBase64,
-            time: timestampString
-        };
-
-        // Stream up to central cloud path node
-        database.ref('donations').push(transactionPayload)
-            .then(() => {
-                // Wipe form out of perspective and scale visibility onto success elements
-                document.getElementById('portalCard').classList.add('hidden');
-                document.getElementById('successBox').classList.remove('hidden');
-                window.scrollTo(0, 0);
-            })
-            .catch((error) => {
-                alert("Database Error: " + error.message);
-                // Unfreeze safely if network dropped completely
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Submit Donation Details";
-                submitBtn.style.background = "";
-                submitBtn.style.cursor = "pointer";
-            });
-    });
-</script>
+<!-- Send your scripts code whenever you're ready! -->
 </body>
 </html>
