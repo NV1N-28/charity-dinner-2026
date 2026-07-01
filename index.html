@@ -82,7 +82,7 @@
         padding: 0 !important;
     }
 
-    /* Beautiful custom styles for the new item contribution block */
+    /* Custom styles for the item contribution block */
     .contribution-selector-box {
         margin-bottom: 20px; 
         padding: 18px; 
@@ -136,9 +136,6 @@
 
         <form id="publicDonationForm" class="hidden">
             
-            <!-- ========================================================= -->
-            <!-- NEW: DYNAMIC BRICK & DONATION TYPE SELECTION INTERFACE   -->
-            <!-- ========================================================= -->
             <div class="contribution-selector-box">
                 <label style="font-weight: bold; color: #6b3e00; display: block; margin-bottom: 12px; font-size: 16px;">I wish to contribute via:</label>
                 
@@ -152,11 +149,9 @@
                     Sponsor Sacred Building Bricks
                 </label>
 
-                <!-- Sub-Section: Bricks Counter Fields (Toggled Dynamically) -->
                 <div id="brickInputSection" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
                     <p style="margin: 0 0 12px 0; font-size: 14px; color: #555; font-style: italic;">Enter the number of bricks you wish to purchase:</p>
                     
-                    <!-- Normal Brick Counter Row -->
                     <div class="brick-row-item">
                         <div>
                             <span style="font-weight: bold; display: block;">Normal Brick</span>
@@ -168,7 +163,6 @@
                         </div>
                     </div>
                     
-                    <!-- Granite Brick Counter Row -->
                     <div class="brick-row-item">
                         <div>
                             <span style="font-weight: bold; display: block; color: #a75003;">🧱 Premium Granite Brick</span>
@@ -181,7 +175,6 @@
                     </div>
                 </div>
             </div>
-            <!-- ========================================================= -->
 
             <div class="form-group">
                 <label>Table Number:</label>
@@ -193,7 +186,6 @@
             </div>
             <div class="form-group">
                 <label>Donated Amount (RM):</label>
-                <!-- This field will automatically adjust read-only status based on selections -->
                 <input type="number" id="amount" placeholder="e.g. 101" required>
             </div>
             <div class="form-group">
@@ -216,6 +208,180 @@
     </div>
 </div>
 
-<!-- Send your scripts code whenever you're ready! -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app", 
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase Instance References
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Variable to temporarily house compiled compression string
+    let compressedReceiptBase64 = "";
+
+    // Pricing Settings Config
+    const COST_NORMAL_BRICK = 10;
+    const COST_GRANITE_BRICK = 301;
+
+    // INTERACTIVE PANEL CONTROLLER: Seamlessly handles opening sections
+    function showPayment(method) {
+        document.getElementById('paymentBox').classList.remove('hidden');
+        document.getElementById('publicDonationForm').classList.remove('hidden');
+        
+        const qrContent = document.getElementById('qrContent');
+        const accContent = document.getElementById('accountContent');
+        const btnQr = document.getElementById('btnQr');
+        const btnAcc = document.getElementById('btnAcc');
+
+        qrContent.classList.add('hidden');
+        accContent.classList.add('hidden');
+        btnQr.classList.remove('active');
+        btnAcc.classList.remove('active');
+
+        if (method === 'qr') {
+            qrContent.classList.remove('hidden');
+            btnQr.add('active');
+            btnQr.classList.add('active');
+        } else if (method === 'account') {
+            accContent.classList.remove('hidden');
+            btnAcc.classList.add('active');
+        }
+    }
+
+    // Dynamic View Form Handler
+    function handleContributionViewType(chosenMode) {
+        const brickContainer = document.getElementById('brickInputSection');
+        const amountField = document.getElementById('amount');
+        
+        if (chosenMode === 'money') {
+            brickContainer.style.display = 'none';
+            amountField.readOnly = false;
+            amountField.value = ""; 
+            amountField.placeholder = "e.g. 101";
+        } else {
+            brickContainer.style.display = 'block';
+            amountField.readOnly = true;
+            tallyTotalBrickCost();
+        }
+    }
+
+    // Brick Equation Calculator
+    function tallyTotalBrickCost() {
+        const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+        const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+        const overallSum = (countNormal * COST_NORMAL_BRICK) + (countGranite * COST_GRANITE_BRICK);
+        document.getElementById('amount').value = overallSum;
+    }
+
+    // IMAGE COMPRESSION ENGINE
+    function processReceipt(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                compressedReceiptBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // SUBMIT STREAM CONTROLLER
+    document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing & Saving Entry... Please Wait...";
+        submitBtn.style.background = "#cccccc";
+        submitBtn.style.cursor = "not-allowed";
+
+        if (!compressedReceiptBase64) {
+            alert("Receipt image processing is still executing. Please wait a brief second and tap submit again.");
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Submit Donation Details";
+            submitBtn.style.background = "#6b3e00";
+            submitBtn.style.cursor = "pointer";
+            return;
+        }
+
+        const tableNum = document.getElementById('tableNumber').value;
+        const donorName = document.getElementById('donorName').value;
+        const donateAmount = document.getElementById('amount').value;
+        const presentedTo = document.getElementById('presentedBy').value || "N/A";
+        
+        const mainContribType = document.querySelector('input[name="mainContribution"]:checked').value;
+        let finalNote = presentedTo;
+        
+        if (mainContribType === 'brick') {
+            const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+            const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+            finalNote = `🧱 [Bricks -> N: ${countNormal} | G: ${countGranite}] — ${presentedTo}`;
+        }
+
+        const now = new Date();
+        const timestampString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' | ' + now.toLocaleDateString();
+
+        const transactionPayload = {
+            table: tableNum,
+            donor: donorName,
+            amount: donateAmount,
+            presented: finalNote,
+            receipt: compressedReceiptBase64,
+            time: timestampString
+        };
+
+        database.ref('donations').push(transactionPayload)
+            .then(() => {
+                document.getElementById('portalCard').classList.add('hidden');
+                document.getElementById('successBox').classList.remove('hidden');
+                window.scrollTo(0, 0);
+            })
+            .catch((error) => {
+                alert("Database Error: " + error.message);
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit Donation Details";
+                submitBtn.style.background = "#6b3e00";
+                submitBtn.style.cursor = "pointer";
+            });
+    });
+</script>
 </body>
 </html>
