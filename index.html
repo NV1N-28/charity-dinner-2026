@@ -115,11 +115,53 @@
 <div class="container">
     <div class="portal-card" id="portalCard">
         <h1>Charity Dinner 2026</h1>
-        <p style="color: #000000;">Please choose your preferred donation method below:</p>
+        
+        <div class="contribution-selector-box">
+            <label style="font-weight: bold; color: #6b3e00; display: block; margin-bottom: 12px; font-size: 16px;">I wish to contribute via:</label>
+            
+            <label style="display: block; margin-bottom: 10px; font-weight: bold; cursor: pointer;">
+                <input type="radio" name="mainContribution" value="money" onclick="handleContributionViewType('money')"> 
+                Direct Financial Donation (RM)
+            </label>
+            
+            <label style="display: block; font-weight: bold; cursor: pointer;">
+                <input type="radio" name="mainContribution" value="brick" onclick="handleContributionViewType('brick')"> 
+                Sponsor Sacred Building Bricks
+            </label>
 
-        <div class="payment-toggle">
-            <button type="button" id="btnQr" class="pay-btn" onclick="showPayment('qr')">Scan QR Code</button>
-            <button type="button" id="btnAcc" class="pay-btn" onclick="showPayment('account')">Bank Transfer</button>
+            <div id="brickInputSection" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                <p style="margin: 0 0 12px 0; font-size: 14px; color: #555; font-style: italic;">Enter the number of bricks you wish to purchase:</p>
+                
+                <div class="brick-row-item">
+                    <div>
+                        <span style="font-weight: bold; display: block;">Normal Brick</span>
+                        <span style="font-size: 13px; color: #666;">RM 10.00 / unit</span>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
+                        <input type="number" id="qtyNormalBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
+                    </div>
+                </div>
+                
+                <div class="brick-row-item">
+                    <div>
+                        <span style="font-weight: bold; display: block; color: #a75003;"> Premium Granite Brick</span>
+                        <span style="font-size: 13px; color: #666;">RM 301.00 / unit</span>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
+                        <input type="number" id="qtyGraniteBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="paymentSelectionSection" class="hidden">
+            <p style="color: #000000; font-weight: bold; margin-top: 20px;">Please choose your preferred payment method:</p>
+            <div class="payment-toggle">
+                <button type="button" id="btnQr" class="pay-btn" onclick="showPayment('qr')">Scan QR Code</button>
+                <button type="button" id="btnAcc" class="pay-btn" onclick="showPayment('account')">Bank Transfer</button>
+            </div>
         </div>
 
         <div id="paymentBox" class="payment-display-box hidden">
@@ -135,47 +177,6 @@
         </div>
 
         <form id="publicDonationForm" class="hidden">
-            
-            <div class="contribution-selector-box">
-                <label style="font-weight: bold; color: #6b3e00; display: block; margin-bottom: 12px; font-size: 16px;">I wish to contribute via:</label>
-                
-                <label style="display: block; margin-bottom: 10px; font-weight: bold; cursor: pointer;">
-                    <input type="radio" name="mainContribution" value="money" checked onclick="handleContributionViewType('money')"> 
-                    Direct Financial Donation (RM)
-                </label>
-                
-                <label style="display: block; font-weight: bold; cursor: pointer;">
-                    <input type="radio" name="mainContribution" value="brick" onclick="handleContributionViewType('brick')"> 
-                    Sponsor Sacred Building Bricks
-                </label>
-
-                <div id="brickInputSection" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
-                    <p style="margin: 0 0 12px 0; font-size: 14px; color: #555; font-style: italic;">Enter the number of bricks you wish to purchase:</p>
-                    
-                    <div class="brick-row-item">
-                        <div>
-                            <span style="font-weight: bold; display: block;">Normal Brick</span>
-                            <span style="font-size: 13px; color: #666;">RM 10.00 / unit</span>
-                        </div>
-                        <div>
-                            <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
-                            <input type="number" id="qtyNormalBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
-                        </div>
-                    </div>
-                    
-                    <div class="brick-row-item">
-                        <div>
-                            <span style="font-weight: bold; display: block; color: #a75003;">🧱 Premium Granite Brick</span>
-                            <span style="font-size: 13px; color: #666;">RM 301.00 / unit</span>
-                        </div>
-                        <div>
-                            <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
-                            <input type="number" id="qtyGraniteBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="form-group">
                 <label>Table Number:</label>
                 <input type="text" id="tableNumber" placeholder="e.g. 12" required>
@@ -212,7 +213,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    // PASTE YOUR EXACT FIREBASE CONFIGURATION OBJECT HERE:
+    // PASTE YOUR REAL FIREBASE DETAILS HERE FROM YOUR FIREBASE CONSOLE:
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -223,18 +224,51 @@
         appId: "YOUR_APP_ID"
     };
 
-    // Initialize Firebase Instance References
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    // Safe Initialization Safeguard
+    let database = null;
+    try {
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        }
+    } catch (err) {
+        console.error("Firebase initialization failed:", err);
+    }
 
-    // Variable to temporarily house compiled compression string
     let compressedReceiptBase64 = "";
-
-    // Pricing Settings Config
     const COST_NORMAL_BRICK = 10;
     const COST_GRANITE_BRICK = 301;
 
-    // INTERACTIVE PANEL CONTROLLER: Seamlessly handles opening sections
+    // Dynamic Contribution Selector Flow
+    function handleContributionViewType(chosenMode) {
+        const brickContainer = document.getElementById('brickInputSection');
+        const amountField = document.getElementById('amount');
+        const paymentSelection = document.getElementById('paymentSelectionSection');
+        
+        // Step 2 reveal trigger
+        paymentSelection.classList.remove('hidden');
+        
+        if (chosenMode === 'money') {
+            brickContainer.style.display = 'none';
+            amountField.readOnly = false;
+            amountField.value = ""; 
+            amountField.placeholder = "e.g. 101";
+        } else {
+            brickContainer.style.display = 'block';
+            amountField.readOnly = true;
+            tallyTotalBrickCost();
+        }
+    }
+
+    // Brick Equation Calculator
+    function tallyTotalBrickCost() {
+        const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+        const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+        const overallSum = (countNormal * COST_NORMAL_BRICK) + (countGranite * COST_GRANITE_BRICK);
+        document.getElementById('amount').value = overallSum;
+    }
+
+    // INTERACTIVE PANEL CONTROLLER
     function showPayment(method) {
         document.getElementById('paymentBox').classList.remove('hidden');
         document.getElementById('publicDonationForm').classList.remove('hidden');
@@ -258,31 +292,6 @@
         }
     }
 
-    // Dynamic View Form Handler
-    function handleContributionViewType(chosenMode) {
-        const brickContainer = document.getElementById('brickInputSection');
-        const amountField = document.getElementById('amount');
-        
-        if (chosenMode === 'money') {
-            brickContainer.style.display = 'none';
-            amountField.readOnly = false;
-            amountField.value = ""; 
-            amountField.placeholder = "e.g. 101";
-        } else {
-            brickContainer.style.display = 'block';
-            amountField.readOnly = true;
-            tallyTotalBrickCost();
-        }
-    }
-
-    // Brick Equation Calculator
-    function tallyTotalBrickCost() {
-        const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
-        const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
-        const overallSum = (countNormal * COST_NORMAL_BRICK) + (countGranite * COST_GRANITE_BRICK);
-        document.getElementById('amount').value = overallSum;
-    }
-
     // IMAGE COMPRESSION ENGINE
     function processReceipt(input) {
         const file = input.files[0];
@@ -295,7 +304,6 @@
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
-
                 const MAX_WIDTH = 800;
                 const MAX_HEIGHT = 800;
 
@@ -322,7 +330,7 @@
         reader.readAsDataURL(file);
     }
 
-    // SUBMIT STREAM CONTROLLER
+    // SUBMIT STREAM CONTROLLER WITH QUANTITY TOTAL TRACKING
     document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -349,10 +357,14 @@
         const mainContribType = document.querySelector('input[name="mainContribution"]:checked').value;
         let finalNote = presentedTo;
         
+        // Track unique unit counters for the admin side
+        let normalQtySold = 0;
+        let graniteQtySold = 0;
+        
         if (mainContribType === 'brick') {
-            const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
-            const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
-            finalNote = `🧱 [Bricks -> N: ${countNormal} | G: ${countGranite}] — ${presentedTo}`;
+            normalQtySold = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
+            graniteQtySold = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
+            finalNote = `🧱 [Bricks -> N: ${normalQtySold} | G: ${graniteQtySold}] — ${presentedTo}`;
         }
 
         const now = new Date();
@@ -364,8 +376,18 @@
             amount: donateAmount,
             presented: finalNote,
             receipt: compressedReceiptBase64,
-            time: timestampString
+            time: timestampString,
+            qtyNormal: normalQtySold,   // Passed explicitly for metric math inside admin dashboard
+            qtyGranite: graniteQtySold  // Passed explicitly for metric math inside admin dashboard
         };
+
+        if (!database) {
+            alert("Testing Mode Preview:\n\n" + JSON.stringify(transactionPayload, null, 2));
+            document.getElementById('portalCard').classList.add('hidden');
+            document.getElementById('successBox').classList.remove('hidden');
+            window.scrollTo(0, 0);
+            return;
+        }
 
         database.ref('donations').push(transactionPayload)
             .then(() => {
