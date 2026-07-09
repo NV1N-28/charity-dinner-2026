@@ -116,6 +116,7 @@
     <div class="portal-card" id="portalCard">
         <h1>Charity Dinner 2026</h1>
         
+        <!-- STEP 1: CHOOSE DONATION TYPE -->
         <div class="contribution-selector-box">
             <label style="font-weight: bold; color: #6b3e00; display: block; margin-bottom: 12px; font-size: 16px;">I wish to contribute via:</label>
             
@@ -129,23 +130,14 @@
                 Sponsor Sacred Building Bricks
             </label>
 
+            <!-- Sub-Section: Granite Bricks Counter Field -->
             <div id="brickInputSection" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
                 <p style="margin: 0 0 12px 0; font-size: 14px; color: #555; font-style: italic;">Enter the number of bricks you wish to purchase:</p>
                 
+                <!-- Granite Brick Counter Row -->
                 <div class="brick-row-item">
                     <div>
-                        <span style="font-weight: bold; display: block;">Normal Brick</span>
-                        <span style="font-size: 13px; color: #666;">RM 10.00 / unit</span>
-                    </div>
-                    <div>
-                        <label style="font-size: 13px; margin-right: 5px;">Qty:</label>
-                        <input type="number" id="qtyNormalBrick" value="0" min="0" class="brick-qty-field" oninput="tallyTotalBrickCost()">
-                    </div>
-                </div>
-                
-                <div class="brick-row-item">
-                    <div>
-                        <span style="font-weight: bold; display: block; color: #a75003;"> Premium Granite Brick</span>
+                        <span style="font-weight: bold; display: block; color: #a75003;">Premium Granite Brick</span>
                         <span style="font-size: 13px; color: #666;">RM 301.00 / unit</span>
                     </div>
                     <div>
@@ -156,6 +148,7 @@
             </div>
         </div>
 
+        <!-- STEP 2: CHOOSE PAYMENT METHOD -->
         <div id="paymentSelectionSection" class="hidden">
             <p style="color: #000000; font-weight: bold; margin-top: 20px;">Please choose your preferred payment method:</p>
             <div class="payment-toggle">
@@ -164,6 +157,7 @@
             </div>
         </div>
 
+        <!-- STEP 3: QR CODE BOX / ACCOUNT DETAILS DISPLAY BOX -->
         <div id="paymentBox" class="payment-display-box hidden">
             <div id="qrContent" class="hidden">
                 <p><strong>Scan this QR Code to Pay:</strong></p>
@@ -176,6 +170,7 @@
             </div>
         </div>
 
+        <!-- STEP 4: FORM DATA INPUTS -->
         <form id="publicDonationForm" class="hidden">
             <div class="form-group">
                 <label>Table Number:</label>
@@ -209,24 +204,23 @@
     </div>
 </div>
 
+<!-- Core Infrastructure Libraries -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    // PASTE YOUR REAL FIREBASE DETAILS HERE FROM YOUR FIREBASE CONSOLE:
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDTWtquSI74mtNZ3YIJBFZUP81OodTWeJc",
-  authDomain: "charity-dinner-2026.firebaseapp.com",
-  databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "charity-dinner-2026",
-  storageBucket: "charity-dinner-2026.firebasestorage.app",
-  messagingSenderId: "917065195902",
-  appId: "1:917065195902:web:473150fb7e3d352ed6d32f",
-  measurementId: "G-YTYM87WKPF"
-};
+    // LIVE CREDENTIALS INJECTED
+    const firebaseConfig = {
+        apiKey: "AIzaSyDTWtquSI74mtNZ3YIJBFZUP81OodTWeJc",
+        authDomain: "charity-dinner-2026.firebaseapp.com",
+        databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "charity-dinner-2026",
+        storageBucket: "charity-dinner-2026.firebasestorage.app",
+        messagingSenderId: "917065195902",
+        appId: "1:917065195902:web:473150fb7e3d352ed6d32f",
+        measurementId: "G-YTYM87WKPF"
+    };
 
-    // Safe Initialization Safeguard
     let database = null;
     try {
         if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
@@ -238,16 +232,13 @@ const firebaseConfig = {
     }
 
     let compressedReceiptBase64 = "";
-    const COST_NORMAL_BRICK = 10;
     const COST_GRANITE_BRICK = 301;
 
-    // Dynamic Contribution Selector Flow
     function handleContributionViewType(chosenMode) {
         const brickContainer = document.getElementById('brickInputSection');
         const amountField = document.getElementById('amount');
         const paymentSelection = document.getElementById('paymentSelectionSection');
         
-        // Step 2 reveal trigger
         paymentSelection.classList.remove('hidden');
         
         if (chosenMode === 'money') {
@@ -262,15 +253,12 @@ const firebaseConfig = {
         }
     }
 
-    // Brick Equation Calculator
     function tallyTotalBrickCost() {
-        const countNormal = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
         const countGranite = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
-        const overallSum = (countNormal * COST_NORMAL_BRICK) + (countGranite * COST_GRANITE_BRICK);
+        const overallSum = countGranite * COST_GRANITE_BRICK;
         document.getElementById('amount').value = overallSum;
     }
 
-    // INTERACTIVE PANEL CONTROLLER
     function showPayment(method) {
         document.getElementById('paymentBox').classList.remove('hidden');
         document.getElementById('publicDonationForm').classList.remove('hidden');
@@ -294,7 +282,6 @@ const firebaseConfig = {
         }
     }
 
-    // IMAGE COMPRESSION ENGINE
     function processReceipt(input) {
         const file = input.files[0];
         if (!file) return;
@@ -332,7 +319,6 @@ const firebaseConfig = {
         reader.readAsDataURL(file);
     }
 
-    // SUBMIT STREAM CONTROLLER WITH QUANTITY TOTAL TRACKING
     document.getElementById('publicDonationForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -358,15 +344,11 @@ const firebaseConfig = {
         
         const mainContribType = document.querySelector('input[name="mainContribution"]:checked').value;
         let finalNote = presentedTo;
-        
-        // Track unique unit counters for the admin side
-        let normalQtySold = 0;
         let graniteQtySold = 0;
         
         if (mainContribType === 'brick') {
-            normalQtySold = parseInt(document.getElementById('qtyNormalBrick').value, 10) || 0;
             graniteQtySold = parseInt(document.getElementById('qtyGraniteBrick').value, 10) || 0;
-            finalNote = `🧱 [Bricks -> N: ${normalQtySold} | G: ${graniteQtySold}] — ${presentedTo}`;
+            finalNote = `🧱 [Granite Bricks -> G: ${graniteQtySold}] — ${presentedTo}`;
         }
 
         const now = new Date();
@@ -379,8 +361,7 @@ const firebaseConfig = {
             presented: finalNote,
             receipt: compressedReceiptBase64,
             time: timestampString,
-            qtyNormal: normalQtySold,   // Passed explicitly for metric math inside admin dashboard
-            qtyGranite: graniteQtySold  // Passed explicitly for metric math inside admin dashboard
+            qtyGranite: graniteQtySold
         };
 
         if (!database) {
