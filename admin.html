@@ -76,10 +76,9 @@
     }
     .dl-btn:hover { background: #333333; }
 
-    /* Live Summary Dashboard Counters Grid */
     .metrics-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr 1fr;
+        grid-template-columns: 2fr 1fr;
         gap: 15px;
         margin-bottom: 25px;
     }
@@ -122,7 +121,6 @@
     .brick-counter-card h2 { margin: 0; font-size: 13px; text-transform: uppercase; color: #6b3e00; }
     .brick-counter-card .count-val { margin: 8px 0 0 0; font-size: 36px; font-weight: bold; color: #a75003; }
 
-    /* SECURE LOGIN SCREEN OVERLAY STYLES */
     #loginOverlay {
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
@@ -207,11 +205,6 @@
         <div class="total-counter-card">
             <h2>Grand Total Donations Raised Real-Time</h2>
             <div class="total-amount" id="liveGrandTotal">RM 0.00</div>
-        </div>
-        
-        <div class="brick-counter-card">
-            <h2>Normal Bricks Sold</h2>
-            <div class="count-val" id="liveNormalBricks">0</div>
         </div>
 
         <div class="brick-counter-card">
@@ -306,24 +299,21 @@
 
     window.addEventListener('DOMContentLoaded', verifySessionGate);
 
-    // =========================================================
-    // DATA STREAM CONTROLLERS (Runs only post-authentication)
-    // =========================================================
     let database;
     let globalDonationsList = [];
 
     function initializeFirebaseEngine() {
-       // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDTWtquSI74mtNZ3YIJBFZUP81OodTWeJc",
-  authDomain: "charity-dinner-2026.firebaseapp.com",
-  databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "charity-dinner-2026",
-  storageBucket: "charity-dinner-2026.firebasestorage.app",
-  messagingSenderId: "917065195902",
-  appId: "1:917065195902:web:473150fb7e3d352ed6d32f",
-  measurementId: "G-YTYM87WKPF"
-};
+        // LIVE CREDENTIALS INJECTED
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTWtquSI74mtNZ3YIJBFZUP81OodTWeJc",
+            authDomain: "charity-dinner-2026.firebaseapp.com",
+            databaseURL: "https://charity-dinner-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "charity-dinner-2026",
+            storageBucket: "charity-dinner-2026.firebasestorage.app",
+            messagingSenderId: "917065195902",
+            appId: "1:917065195902:web:473150fb7e3d352ed6d32f",
+            measurementId: "G-YTYM87WKPF"
+        };
 
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -333,20 +323,17 @@ const firebaseConfig = {
         database.ref('donations').on('value', function(snapshot) {
             const tableBody = document.getElementById('donationTable');
             const totalDisplay = document.getElementById('liveGrandTotal');
-            const normalBrickDisplay = document.getElementById('liveNormalBricks');
             const graniteBrickDisplay = document.getElementById('liveGraniteBricks');
             
             tableBody.innerHTML = '';
             globalDonationsList = [];
             
             let runningGrandTotal = 0;
-            let combinedNormalBricks = 0;
             let combinedGraniteBricks = 0;
 
             if (!snapshot.exists()) {
                 tableBody.innerHTML = `<tr><td colspan="6">No incoming mobile entries submitted yet.</td></tr>`;
                 totalDisplay.innerText = "RM 0.00";
-                normalBrickDisplay.innerText = "0";
                 graniteBrickDisplay.innerText = "0";
                 return;
             }
@@ -363,14 +350,11 @@ const firebaseConfig = {
 
                 globalDonationsList.push({ id: idKey, data: d });
 
-                // Accumulate calculations
                 const parsedAmount = parseFloat(d.amount);
                 if (!isNaN(parsedAmount)) {
                     runningGrandTotal += parsedAmount;
                 }
 
-                // Safely tally numerical item entries if present
-                if (d.qtyNormal) combinedNormalBricks += parseInt(d.qtyNormal, 10) || 0;
                 if (d.qtyGranite) combinedGraniteBricks += parseInt(d.qtyGranite, 10) || 0;
 
                 tableBody.innerHTML += `
@@ -391,12 +375,10 @@ const firebaseConfig = {
                 index++;
             });
 
-            // Update DOM metrics interface
             totalDisplay.innerText = "RM " + runningGrandTotal.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
-            normalBrickDisplay.innerText = combinedNormalBricks;
             graniteBrickDisplay.innerText = combinedGraniteBricks;
         });
     }
@@ -435,15 +417,14 @@ const firebaseConfig = {
             return;
         }
         let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Table Number,Donor Name,Amount (RM),Normal Bricks Sold,Granite Bricks Sold,Presented By/Notes,Timestamp,Image Proof Link\n";
+        csvContent += "Table Number,Donor Name,Amount (RM),Granite Bricks Sold,Presented By/Notes,Timestamp,Image Proof Link\n";
 
         globalDonationsList.forEach(item => {
             const d = item.data;
             let cleanDonor = d.donor.replace(/,/g, '');
             let cleanPresented = (d.presented || 'N/A').replace(/,/g, '');
-            let nBricks = d.qtyNormal || 0;
             let gBricks = d.qtyGranite || 0;
-            csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${nBricks}","${gBricks}","${cleanPresented}","${d.time}","${d.receipt}"\n`;
+            csvContent += `"${d.table}","${cleanDonor}","${d.amount}","${gBricks}","${cleanPresented}","${d.time}","${d.receipt}"\n`;
         });
 
         const encodedUri = encodeURI(csvContent);
